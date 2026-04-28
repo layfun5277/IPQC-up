@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IPQC 巡檢表 + 歷史資料儲存</title>
+    <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      
+      <div class="header-brand">
+        <img src="Tai-Zhong-Lu-He-Xin-Ban-LOGO-2.jpg" alt="LOGO" class="header-logo" onerror="this.onerror=null;this.style.display='none';this.insertAdjacentHTML('afterend','<div style=\'background:#fff;color:#111;padding:10px 12px;border-radius:10px;font-weight:700;\'>LOGO 載入失敗：請確認圖片檔與 HTML 放同一資料夾</div>');">
+        <div class="logo-fallback">LOGO 載入失敗：請確認圖片檔與 HTML 放同一資料夾</div>
+      </div>
+<h1>IPQC 巡檢表 + 歷史資料儲存</h1>
+      <p>單檔 HTML / CSS / JS，支援自動儲存、歷史載入、刪除與列印</p>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn-primary" onclick="addRow()">新增巡檢列</button>
+      <button class="btn-success" onclick="saveHistory()">儲存本次巡檢</button>
+      <button class="btn-gray" onclick="window.print()">列印 / 另存 PDF</button>
+      <button class="btn-success" onclick="exportExcel()">匯出 Excel</button>
+      <button class="btn-primary" onclick="renderCharts()">更新圖表</button>
+      <button class="btn-success" onclick="renderDefectBarChart()">更新直方圖</button>
+      <button class="btn-danger" onclick="clearCurrentForm()">清空本次表單</button>
+      <button class="btn-danger" onclick="clearAllHistory()">清空全部歷史</button>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">歷史資料管理</h2>
+      <div class="history-bar">
+        <input type="date" id="historyDateFrom">
+        <input type="date" id="historyDateTo">
+        <select id="historySelect"></select>
+        <button class="btn-primary" onclick="loadSelectedHistory()">載入歷史資料</button>
+        <button class="btn-gray" onclick="filterHistoryByDate()">依日期篩選</button>
+        <button class="btn-danger" onclick="deleteSelectedHistory()">刪除歷史資料</button>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">基本資料</h2>
+      <div class="grid">
+        <div class="field"><label>日期</label><input type="date" id="date"></div>
+        <div class="field"><label>班別</label><select id="shift"><option>白班</option><option>夜班</option></select></div>
+        <div class="field"><label>產品名稱</label><input type="text" id="product"></div>
+        <div class="field"><label>料號</label><input type="text" id="partNo"></div>
+        <div class="field"><label>工單號</label><input type="text" id="workOrder"></div>
+        <div class="field"><label>製程站別</label><input type="text" id="process"></div>
+        <div class="field"><label>巡檢員</label><input type="text" id="inspector"></div>
+        <div class="field"><label>抽樣數</label><input type="number" id="sampleQty" value="0" onchange="autosave();calculate()"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">巡檢明細</h2>
+      <div class="table-wrap">
+        <table id="inspectionTable">
+          <thead>
+            <tr>
+              <th>序號</th><th>巡檢項目</th><th>標準 / 規格</th><th>量測值</th><th>判定</th><th>不良類型</th><th>不良數</th><th>備註</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr>
+              <td>1</td>
+              <td><input type="text" value="尺寸" oninput="autosave()"></td>
+              <td><input type="text" value="依圖面 / SIP" oninput="autosave()"></td>
+              <td><input type="text" value="" oninput="autosave()"></td>
+              <td><select class="judge" onchange="autosave();calculate()"><option>OK</option><option>NG</option></select></td>
+              <td><input type="text" value="" oninput="autosave()"></td>
+              <td><input type="number" class="defectQty" value="0" onchange="autosave();calculate()"></td>
+              <td><input type="text" value="" oninput="autosave()"></td>
+              <td><button class="btn-danger" onclick="removeRow(this)">刪除</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="summary">
+        <div class="summary-box"><div class="label">總巡檢項數</div><div class="value" id="totalItems">1</div></div>
+        <div class="summary-box"><div class="label">OK 項數</div><div class="value" id="okItems">1</div></div>
+        <div class="summary-box"><div class="label">NG 項數</div><div class="value" id="ngItems">0</div></div>
+        <div class="summary-box"><div class="label">不良總數</div><div class="value" id="totalDefects">0</div></div><div class="summary-box"><div class="label">不良率</div><div class="value" id="defectRate">0.00%</div></div><div class="summary-box"><div class="label">區間平均不良率</div><div class="value" id="avgDefectRate">0.00%</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">異常處置</h2>
+      <div class="grid">
+        <div class="field"><label>異常說明</label><textarea id="abnormalDesc" oninput="autosave()"></textarea></div>
+        <div class="field"><label>處置方式</label><textarea id="action" oninput="autosave()"></textarea></div>
+        <div class="field"><label>複判結果</label><select id="recheck" onchange="autosave();calculate()"><option>待複判</option><option>OK</option><option>NG</option></select></div>
+        <div class="field"><label>判定結果</label><input type="text" id="finalStatus" readonly value="OK"></div>
+      </div>
+    </div>
+
+    
+    <div class="card">
+      <h2 class="section-title">趨勢圖表</h2>
+      <div class="grid">
+        <div class="field chart-span-2"><label>直線圖</label><canvas id="lineChart" height="220"></canvas></div>
+        <div class="field chart-span-2"><label>不良率圖表</label><canvas id="rateChart" height="220"></canvas></div>
+      </div>
+      <div class="note">圖表會依歷史資料中的巡檢日期與不良率自動繪製。</div>
+    </div>
+
+    
+    <div class="card">
+      <h2 class="section-title">巡檢項目不良直方圖</h2>
+      <div class="field"><label>直方圖</label><canvas id="defectBarChart" height="240"></canvas></div>
+      <div class="note">依巡檢項目統計每日不良數，顯示各項目不良次數分布。</div>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title">簽核區</h2>
+      <div class="signature-grid">
+        <div class="signature-box"><div class="title">巡檢員</div><div class="line">簽名 / 日期</div></div>
+        <div class="signature-box"><div class="title">班長 / 線長</div><div class="line">簽名 / 日期</div></div>
+        <div class="signature-box"><div class="title">品保主管</div><div class="line">簽名 / 日期</div></div>
+        <div class="signature-box"><div class="title">製造主管</div><div class="line">簽名 / 日期</div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const HISTORY_KEY = 'ipqc_history_v1';
+    const DRAFT_KEY = 'ipqc_draft_v1';
+
+    function getRows(){ return [...document.querySelectorAll('#tableBody tr')]; }
+    function getFormData(){
+      return {
+        date: date.value, shift: shift.value, product: product.value, partNo: partNo.value,
+        workOrder: workOrder.value, process: process.value, inspector: inspector.value,
+        sampleQty: sampleQty.value, abnormalDesc: abnormalDesc.value, action: action.value, recheck: recheck.value,
+        rows: getRows().map(tr => ({
+          item: tr.querySelector('td:nth-child(2) input').value,
+          spec: tr.querySelector('td:nth-child(3) input').value,
+          measure: tr.querySelector('td:nth-child(4) input').value,
+          judge: tr.querySelector('.judge').value,
+          defectType: tr.querySelector('td:nth-child(6) input').value,
+          defectQty: tr.querySelector('.defectQty').value,
+          note: tr.querySelector('td:nth-child(8) input').value,
+        }))
+      };
+    }
+
+    function setFormData(data){
+      date.value = data.date || ''; shift.value = data.shift || '白班'; product.value = data.product || ''; partNo.value = data.partNo || '';
+      workOrder.value = data.workOrder || ''; process.value = data.process || ''; inspector.value = data.inspector || '';
+      sampleQty.value = data.sampleQty || 0; abnormalDesc.value = data.abnormalDesc || ''; action.value = data.action || ''; recheck.value = data.recheck || '待複判';
+      tableBody.innerHTML='';
+      (data.rows && data.rows.length ? data.rows : [{item:'尺寸',spec:'依圖面 / SIP',measure:'',judge:'OK',defectType:'',defectQty:'0',note:''}]).forEach((r,i)=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i+1}</td>
+          <td><input type="text" value="${escapeHtml(r.item||'')}" oninput="autosave()"></td>
+          <td><input type="text" value="${escapeHtml(r.spec||'')}" oninput="autosave()"></td>
+          <td><input type="text" value="${escapeHtml(r.measure||'')}" oninput="autosave()"></td>
+          <td><select class="judge" onchange="autosave();calculate()"><option ${r.judge==='OK'?'selected':''}>OK</option><option ${r.judge==='NG'?'selected':''}>NG</option></select></td>
+          <td><input type="text" value="${escapeHtml(r.defectType||'')}" oninput="autosave()"></td>
+          <td><input type="number" class="defectQty" value="${escapeHtml(r.defectQty??'0')}" onchange="autosave();calculate()"></td>
+          <td><input type="text" value="${escapeHtml(r.note||'')}" oninput="autosave()"></td>
+          <td><button class="btn-danger" onclick="removeRow(this)">刪除</button></td>`;
+        tableBody.appendChild(tr);
+      });
+      calculate(); renderHistory();
+      renderCharts();
+      renderDefectBarChart();
+      updateAverageDefectRate();
+    }
+
+    function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+    function addRow(){ const tr = document.createElement('tr'); const idx = getRows().length + 1; tr.innerHTML = `
+      <td>${idx}</td><td><input type="text" value="" oninput="autosave()"></td><td><input type="text" value="" oninput="autosave()"></td><td><input type="text" value="" oninput="autosave()"></td>
+      <td><select class="judge" onchange="autosave();calculate()"><option>OK</option><option>NG</option></select></td><td><input type="text" value="" oninput="autosave()"></td><td><input type="number" class="defectQty" value="0" onchange="autosave();calculate()"></td><td><input type="text" value="" oninput="autosave()"></td>
+      <td><button class="btn-danger" onclick="removeRow(this)">刪除</button></td>`; tableBody.appendChild(tr); calculate(); autosave(); }
+    function removeRow(btn){ btn.closest('tr').remove(); renumber(); calculate(); autosave(); }
+    function renumber(){ getRows().forEach((tr,i)=>tr.cells[0].textContent=i+1); }
+    function calculate(){ const rows = getRows(); let ok=0, ng=0, defect=0; rows.forEach(r=>{ const j=r.querySelector('.judge').value; const q=parseInt(r.querySelector('.defectQty').value||'0',10); if(j==='OK') ok++; else ng++; defect += q; }); const sample = parseFloat(sampleQty.value||'0'); const rate = sample > 0 ? (defect / sample * 100) : 0; totalItems.textContent=rows.length; okItems.textContent=ok; ngItems.textContent=ng; totalDefects.textContent=defect; defectRate.textContent=rate.toFixed(2) + '%'; finalStatus.value = (ng===0 && recheck.value!=='NG') ? 'OK' : 'NG'; }
+    function autosave(){ localStorage.setItem(DRAFT_KEY, JSON.stringify(getFormData())); renderHistory(); }
+    function saveHistory(){ const arr = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); const data = getFormData(); data.id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()); data.savedAt = new Date().toLocaleString('zh-Hant'); arr.unshift(data); localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); autosave(); alert('已儲存到歷史資料'); }
+    function renderHistory(list){ const arr = list || JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); historySelect.innerHTML = arr.length ? arr.map((d,i)=>`<option value="${i}">${d.date || '未填日期'} - ${d.savedAt || '未命名'} - ${d.product || '未填產品'} ${d.partNo ? '('+d.partNo+')' : ''}</option>`).join('') : '<option value="">沒有歷史資料</option>'; historyList.innerHTML = arr.length ? arr.map((d,i)=>`<div class="history-item"><div><strong>${d.date || '未填日期'} ${d.savedAt || '未命名'}</strong><br><small>${d.shift || ''}｜${d.product || ''} ${d.partNo || ''}｜${d.workOrder || ''}</small></div><div><button class="btn-primary" onclick="loadHistoryByData(${i})">載入</button> <button class="btn-danger" onclick="deleteHistory(${i})">刪除</button></div></div>`).join('') : '<div class="note">尚無歷史資料</div>'; }
+    function filterHistoryByDate(){ const from = historyDateFrom.value; const to = historyDateTo.value; const arr = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]').filter(d => (!from || d.date >= from) && (!to || d.date <= to)); renderHistory(arr); renderCharts(arr); renderDefectBarChart(arr); updateAverageDefectRate(arr); }
+    function loadHistoryByData(i){ const arr = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); const filtered = [...arr]; const item = filtered[i]; if(!item) return; setFormData(item); localStorage.setItem(DRAFT_KEY, JSON.stringify(item)); }
+    function loadSelectedHistory(){ const i = historySelect.value; if(i==='') return; loadHistory(Number(i)); }
+    function loadHistory(i){ const arr = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); if(!arr[i]) return; setFormData(arr[i]); localStorage.setItem(DRAFT_KEY, JSON.stringify(arr[i])); }
+    function deleteHistory(i){ const arr = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); arr.splice(i,1); localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); renderHistory(); }
+    function deleteSelectedHistory(){ const i = historySelect.value; if(i==='') return; deleteHistory(Number(i)); }
+    function clearCurrentForm(){ if(!confirm('確定清空本次表單？')) return; localStorage.removeItem(DRAFT_KEY); setFormData({shift:'白班', recheck:'待複判', rows:[{item:'尺寸',spec:'依圖面 / SIP',measure:'',judge:'OK',defectType:'',defectQty:'0',note:''}]}); }
+    function clearAllHistory(){ if(!confirm('確定清空全部歷史資料？')) return; localStorage.removeItem(HISTORY_KEY); renderHistory(); }
+
+    
+    function updateAverageDefectRate(rows){
+      const data = rows || JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      const valid = data.filter(d => d.date);
+      if(!valid.length){ avgDefectRate.textContent = '0.00%'; return; }
+      const totalDefects = valid.reduce((sum,d)=>sum + (d.rows ? d.rows.reduce((a,r)=>a+(parseInt(r.defectQty||'0',10)||0),0) : 0), 0);
+      const totalSample = valid.reduce((sum,d)=>sum + (parseFloat(d.sampleQty||'0') || 0), 0);
+      avgDefectRate.textContent = (totalSample > 0 ? (totalDefects / totalSample * 100) : 0).toFixed(2) + '%';
+    }
+
+    
+    function renderDefectBarChart(dataSet){
+      const rows = (dataSet || JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')).filter(d => d.date);
+      const defectMap = {};
+      rows.forEach(d => {
+        (d.rows || []).forEach(r => {
+          const qty = parseInt(r.defectQty || '0', 10) || 0;
+          const item = (r.item || '未命名項目').trim();
+          if(qty > 0){ defectMap[item] = (defectMap[item] || 0) + qty; }
+        });
+      });
+      const labels = Object.keys(defectMap);
+      const values = Object.values(defectMap);
+      const ctx = document.getElementById('defectBarChart');
+      if(!ctx) return;
+      if(window.__ipqcDefectBarChart) window.__ipqcDefectBarChart.destroy();
+      window.__ipqcDefectBarChart = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ label:'不良數', data:values, backgroundColor:'rgba(37,99,235,.7)', borderColor:'#2563eb', borderWidth:1 }]}, options:{ responsive:true, plugins:{ legend:{ display:true } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } } });
+    }
+
+    function renderCharts(dataSet){
+      const rows = (dataSet || JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')).filter(d => d.date);
+      const sorted = rows.sort((a,b) => a.date.localeCompare(b.date));
+      const labels = sorted.map(d => d.date);
+      const defectRates = sorted.map(d => { const sample = parseFloat(d.sampleQty||'0'); const defects = d.rows ? d.rows.reduce((a,r)=>a+(parseInt(r.defectQty||'0',10)||0),0) : 0; return sample > 0 ? +(defects / sample * 100).toFixed(2) : 0; });
+      const measures = sorted.map(d => { const defects = d.rows ? d.rows.reduce((a,r)=>a+(parseInt(r.defectQty||'0',10)||0),0) : 0; return defects; });
+      const lineCtx = document.getElementById('lineChart');
+      const rateCtx = document.getElementById('rateChart');
+      if(window.__ipqcLineChart) window.__ipqcLineChart.destroy();
+      if(window.__ipqcRateChart) window.__ipqcRateChart.destroy();
+      window.__ipqcLineChart = new Chart(lineCtx, { type:'line', data:{ labels, datasets:[{ label:'不良總數', data:measures, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.15)', tension:.25, fill:true, pointRadius:4 }]}, options:{ responsive:true, plugins:{ legend:{ display:true } }, scales:{ y:{ beginAtZero:true } } } });
+      window.__ipqcRateChart = new Chart(rateCtx, { type:'line', data:{ labels, datasets:[{ label:'不良率 (%)', data:defectRates, borderColor:'#dc2626', backgroundColor:'rgba(220,38,38,.12)', tension:.25, fill:true, pointRadius:4 }]}, options:{ responsive:true, plugins:{ legend:{ display:true } }, scales:{ y:{ beginAtZero:true, ticks:{ callback: v => Number(v).toFixed(2) + '%' } } } } });
+      updateAverageDefectRate(rows);
+    }
+
+
+    function exportExcel(){
+      const rows = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      const filtered = rows;
+      const data = filtered.map((d, idx) => ({
+        序號: idx + 1,
+        日期: d.date || '',
+        班別: d.shift || '',
+        產品名稱: d.product || '',
+        料號: d.partNo || '',
+        工單號: d.workOrder || '',
+        製程站別: d.process || '',
+        巡檢員: d.inspector || '',
+        抽樣數: d.sampleQty || '',
+        不良總數: d.rows ? d.rows.reduce((a,r)=>a+(parseInt(r.defectQty||'0',10)||0),0) : 0,
+        不良率: (()=>{ const s = parseFloat(d.sampleQty||'0'); const n = d.rows ? d.rows.reduce((a,r)=>a+(parseInt(r.defectQty||'0',10)||0),0) : 0; return s > 0 ? (n/s*100).toFixed(2)+'%' : '0.00%'; })(),
+        判定結果: (d.rows && d.rows.some(r=>r.judge==='NG')) ? 'NG' : 'OK',
+        異常說明: d.abnormalDesc || '',
+        處置方式: d.action || '',
+        複判結果: d.recheck || '',
+        儲存時間: d.savedAt || ''
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'IPQC歷史資料');
+      XLSX.writeFile(wb, 'IPQC歷史資料.xlsx');
+    }
+
+    function init(){ const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if(draft) setFormData(draft); else setFormData({shift:'白班', recheck:'待複判', rows:[{item:'尺寸',spec:'依圖面 / SIP',measure:'',judge:'OK',defectType:'',defectQty:'0',note:''}]}); [date,shift,product,partNo,workOrder,process,inspector,sampleQty,abnormalDesc,action,recheck,historyDateFrom,historyDateTo].forEach(el => el.addEventListener('input', autosave)); sampleQty.addEventListener('input', calculate); renderHistory(); }
+    init();
+  </script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</body>
+</html>
